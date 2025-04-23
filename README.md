@@ -11,6 +11,20 @@ If requirements are met, just run Generate.py to generate RIRs. Setting paramete
 
 Since the data generated for 100,000 RIRs is more than 1TB, it might take some time to be uploaded.
 
-An update is already in progress which generates higher quality of HOA RIRs using Ray Tracing method.
+Version 2 is uploaded that does not require SphericalHarmonicDirectivity and has following pros and cons:
++ Ray Tracing
++ Complex Geometries
++ Eigenmike style microphone configuration
+- No higher bound for Reverberation time (can be added).
 
-Citation will be provided soon.
+Cite this work: 
+
+@misc{saini2025harp,
+      title={HARP: A Large-Scale Higher-Order Ambisonic Room Impulse Response Dataset}, 
+      author={Shivam Saini and Jürgen Peissig},
+      year={2025},
+      eprint={2411.14207},
+      archivePrefix={arXiv},
+      primaryClass={cs.SD},
+      url={https://arxiv.org/abs/2411.14207}, 
+}
