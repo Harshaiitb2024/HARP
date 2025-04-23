@@ -396,16 +396,12 @@ def polygon_to_3d_vertices(x_coords, y_coords, z_height):
 
 def save_rirs(output_path, name, fs, room):
     for j, cur_source_type in enumerate(source_types):
-        #binaural_rir = np.array([RIR[0][j], RIR[1][j]])
         RIR = room.rir
         max_len = np.array([len(RIR[i][0]) for i in range(room.n_mics)]).max()
         em_rir = np.array([np.pad(RIR[i][j], (0,max_len - RIR[i][j].shape[0])).tolist() for i in range(room.n_mics)])
         em_rir = em_rir[...,:fs*(max_len//fs)]
         os.makedirs(f'{output_path}', exist_ok=True)
         os.makedirs(f'{output_path}/valid/', exist_ok=True)
-        #os.makedirs(f'{output_path}/{mic_types[1]}/{cur_source_type}', exist_ok=True)
-        #wavfile.write(f"{output_path}/{mic_types[0]}/{cur_source_type}/{name}", fs, binaural_rir.astype(np.float32).T)
-        #wavfile.write(f"{output_path}/{name}", fs, em_rir.astype(np.float32).T)
         wavfile.write(f"{output_path}/valid/{name}", fs, RIR[0][0].astype(np.float32).T)
             
 
@@ -415,7 +411,7 @@ def generate_rir_for_all_combinations_together(room, output_path, mic_position, 
     or_z = 0
     #room = add_directive_microphones(room, mic_position, or_y, or_z, fs, 'all')
     #room = add_directive_source(room, source_position, or_y, or_z, fs)
-    mics = EM32_mic_config(2, mic_position, fs)
+    mics = EM32_mic_config(64, mic_position, fs)
     room.add(mics)
     room.add_source(source_position)
     room.image_source_model()
@@ -428,24 +424,6 @@ def generate_rir_for_all_combinations_together(room, output_path, mic_position, 
     save_rirs(output_path, name, fs, room)
     
     return RT, or_y, or_z
-
-'''def generate_mic_source_pair_rir(room, output_path, mic_position, source_position, i, j, fs):   
-    #randomize orientations later
-    or_y = 0
-    or_z = 0
-    for cur_mic_type in mic_types:
-        room = add_directive_microphones(room, mic_position, or_y, or_z, fs, cur_mic_type)
-        for cur_source_type in source_types:  
-            room = add_directive_source(room, source_position, or_y, or_z, fs, cur_source_type)
-            room.image_source_model()
-            room.compute_rir()
-            RIR = np.stack([np.pad(r[0], (0, fs - r[0].shape[0])) for r in room.rir], axis=0)
-            name = f'R{i}_P{j}_IR.wav'
-            os.makedirs(f'{output_path}', exist_ok=True)            
-            wavfile.write(f"{output_path}/{name}", fs, RIR.astype(np.float32).T)
-            RT = pra.experimental.rt60.measure_rt60(RIR[0], fs=room.fs, decay_db=60)
-            room.sources.clear()
-    return RT, or_y, or_z'''
 
 def simulate_room(i, j, output_path, fs, wall_materials, vertical_materials, corners, height, regularity):           
     # Create the 2D polygonal room
