@@ -69,23 +69,6 @@ def get_material():
         'floor': np.random.choice(FLOOR),
     }
 
-
-def create_ambisonic_array(order_of_ambisonics, sample_rate):
-    mic_radius = 0.000001
-    order = order_of_ambisonics
-    samples = (order + 1) ** 2
-    mic_positions, orientations, degrees = HOA_array(samples=samples, radius=1, n_order=order)
-    mic_positions = mic_positions * mic_radius
-    microphone_directivities = []
-    for i in range(samples):
-        orientation = orientations[i]
-        directivity = pra.directivities.SphericalHarmonicDirectivity(
-            orientation, n=degrees[i][0], m=degrees[i][1]
-        )
-        microphone_directivities.append(directivity)
-    return mic_positions.T, sample_rate, microphone_directivities
-
-
 def random_point_in_polygon(polygon, height):
     """
     Generates a random point inside a given polygon using rejection sampling.
@@ -180,27 +163,6 @@ def makeCoupledPolygonRoom(fs, height=3.0, shape='L'):
 
     return wall_materials,vertical_materials, corners, height
 
-def get_directive_EM32(mic_center, fs=16000):
-    em = pra.MeasuredDirectivityFile("EM32_Directivity", fs=fs)
-    positions = []
-    directivities = []
-    microphone_angles = [
-        (0.0, 21.0), (32.0, 58.0), (0.0, 90.0), (-32.0, 58.0),
-        (-45.0, 35.0), (-90.0, 0.0), (-135.0, 35.0), (-180.0, 21.0),
-        (135.0, 35.0), (90.0, 0.0), (45.0, 35.0), (0.0, -21.0),
-        (180.0, -21.0), (123.0, -58.0), (90.0, -90.0), (57.0, -58.0),
-        (45.0, -35.0), (0.0, -159.0), (-45.0, -35.0), (-57.0, -58.0),
-        (-90.0, -90.0), (-123.0, -58.0), (-135.0, -35.0), (180.0, -159.0),
-        (135.0, -35.0), (123.0, -122.0), (90.0, -180.0), (57.0, -122.0),
-        (45.0, -145.0), (0.0, 159.0), (-45.0, -145.0), (-57.0, -122.0)
-    ]
-    for i in range(32):
-        positions.append(em.get_mic_position(f"EM_32_{i}"))
-        rot = Rotation3D([microphone_angles[i][0], microphone_angles[i][1]], "yz", degrees=True)
-        directivities.append(em.get_mic_directivity(f"EM_32_{i}", rot))
-    
-    return pra.MicrophoneArray((np.array(positions) + mic_center).T, fs, directivities)
-
 def fibonacci_sphere(samples=25, radius=1.0):
     """
     Generates points on a sphere using the Fibonacci lattice method.
@@ -234,110 +196,6 @@ def EM32_mic_config(num_mics=32, mic_center=[0,0,0], fs = 16000):
     all_positions = all_positions + mic_center
     
     return pra.MicrophoneArray(all_positions.T, fs)
-
-
-def add_directive_microphones(room, position, rot_y, rot_z, fs, mic_type='kemar'):
-
-    rot = Rotation3D([rot_y, rot_z], "yz", degrees=True)
-
-    if mic_type == 'kemar':
-        hrtf = MeasuredDirectivityFile(path="mit_kemar_normal_pinna.sofa", fs=fs)
-        dir_left = hrtf.get_mic_directivity("left", orientation=rot)
-        dir_right = hrtf.get_mic_directivity("right", orientation=rot)
-        if room.n_mics == 0:
-            room.add_microphone(position, directivity=dir_left)
-            room.add_microphone(position, directivity=dir_right)
-        else:
-            room.mic_array = None
-            room.add_microphone(position, directivity=dir_left)
-            room.add_microphone(position, directivity=dir_right)            
-
-    elif mic_type == 'em_32':
-        eigenmike = MeasuredDirectivityFile("EM32_Directivity", fs=fs)
-        dir_obj = eigenmike.get_mic_directivity(f"EM_32_9", orientation=rot)
-        if room.n_mics == 0:
-            room.add_microphone(position, directivity=dir_obj)
-        else:
-            room.mic_array = None
-            room.add_microphone(position, directivity=dir_obj)
-    else:
-        hrtf = MeasuredDirectivityFile(path="mit_kemar_normal_pinna.sofa", fs=fs)
-        dir_left = hrtf.get_mic_directivity("left", orientation=rot)
-        dir_right = hrtf.get_mic_directivity("right", orientation=rot)
-        room.add_microphone(position, directivity=dir_left)
-        room.add_microphone(position, directivity=dir_right)
-
-        eigenmike = get_directive_EM32(position, fs)
-        room.add(eigenmike)
-
-
-    return room
-
-def add_directive_source(room, position, rot_y, rot_z, fs):
-    '''
-    speaker_type
-        - Genelec_8020
-        - Lambda_labs_CX-1A
-        - HATS_4128C
-        - Tannoy_System_1200
-        - Neumann_KH120A
-        - Yamaha_DXR8
-        - BM_1x12inch_driver_closed_cabinet
-        - BM_1x12inch_driver_open_cabinet
-        - BM_open_stacked_on_closed_withCrossoverNetwork
-        - BM_open_stacked_on_closed_fullrange
-        - Palmer_1x12inch
-        - Vibrolux_2x10inch
-    '''
-    rot = Rotation3D([rot_y, rot_z], "yz", degrees=True)
-    measurements = MeasuredDirectivityFile("LSPs_HATS_GuitarCabinets_Akustikmessplatz", fs=fs)
-    for cur_speaker in source_types:
-        source_directivity = measurements.get_source_directivity(cur_speaker,rot)
-        room.add_source(position, source_directivity)    
-    
-    '''if len(room.sources) == 0 :
-        room.add_source(position, source_directivity)
-    else:
-        room.sources = []
-        room.add_source(position, source_directivity)'''
-    return room
-
-def get_directive_microphones(rot_y, rot_z, fs, mic_type='kemar'):
-
-    rot = Rotation3D([rot_y, rot_z], "yz", degrees=True)
-
-    if mic_type == 'kemar':
-        hrtf = MeasuredDirectivityFile(path="mit_kemar_normal_pinna.sofa", fs=fs)
-        dir_left = hrtf.get_mic_directivity("left", orientation=rot)
-        dir_right = hrtf.get_mic_directivity("right", orientation=rot)
-        return dir_left, dir_right
-
-    elif mic_type == 'em_32':
-        eigenmike = MeasuredDirectivityFile("EM32_Directivity", fs=fs)
-        dir_obj = eigenmike.get_mic_directivity("EM_32_9", orientation=rot)
-        return dir_obj
-
-def get_directive_source(room, position, rot_y, rot_z, fs, speaker_type):
-    '''
-    speaker_type
-        - Genelec_8020
-        - Lambda_labs_CX-1A
-        - HATS_4128C
-        - Tannoy_System_1200
-        - Neumann_KH120A
-        - Yamaha_DXR8
-        - BM_1x12inch_driver_closed_cabinet
-        - BM_1x12inch_driver_open_cabinet
-        - BM_open_stacked_on_closed_withCrossoverNetwork
-        - BM_open_stacked_on_closed_fullrange
-        - Palmer_1x12inch
-        - Vibrolux_2x10inch
-    '''
-    rot = Rotation3D([rot_y, rot_z], "yz", degrees=True)
-    measurements = MeasuredDirectivityFile("LSPs_HATS_GuitarCabinets_Akustikmessplatz", fs=fs)
-    source_directivity = measurements.get_source_directivity(speaker_type,rot)
-    room.add_source(position, source_directivity)
-    return room
 
 mic_types = ['em_32'] #'kemar',
 source_types = ['point'] #'Genelec_8020', 'HATS_4128C', 'Lambda_labs_CX-1A'
@@ -406,11 +264,8 @@ def save_rirs(output_path, name, fs, room):
             
 
 def generate_rir_for_all_combinations_together(room, output_path, mic_position, source_position, i, j, fs):   
-    #randomize orientations later
     or_y = 0
     or_z = 0
-    #room = add_directive_microphones(room, mic_position, or_y, or_z, fs, 'all')
-    #room = add_directive_source(room, source_position, or_y, or_z, fs)
     mics = EM32_mic_config(64, mic_position, fs)
     room.add(mics)
     room.add_source(source_position)
