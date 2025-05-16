@@ -260,7 +260,7 @@ def save_rirs(output_path, name, fs, room):
         em_rir = em_rir[...,:fs*(max_len//fs)]
         os.makedirs(f'{output_path}', exist_ok=True)
         os.makedirs(f'{output_path}/valid/', exist_ok=True)
-        wavfile.write(f"{output_path}/valid/{name}", fs, RIR[0][0].astype(np.float32).T)
+        wavfile.write(f"{output_path}/valid/{name}", fs, em_rir.astype(np.float32).T)
             
 
 def generate_rir_for_all_combinations_together(room, output_path, mic_position, source_position, i, j, fs):   
