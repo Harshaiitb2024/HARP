@@ -2,76 +2,76 @@ import pyroomacoustics as pra
 from scipy.special import sph_harm
 import numpy as np
 
-def compute_spherical_harmonics(order, theta, phi):
-    """Computes spherical harmonics up to a given order.
-
-    Args:
-        order (int): The maximum order of spherical harmonics to compute.
-        theta (float or numpy.ndarray): The polar angle(s) (colatitude) in radians.
-        phi (float or numpy.ndarray): The azimuthal angle(s) in radians.
-
-    Returns:
-        numpy.ndarray: An array of complex spherical harmonic values.
-                       The shape of the output depends on the input shape of theta and phi.
-    """
-
+def spherical_harmonics(order, theta, phi):
+    """Compute spherical harmonics up to a certain order."""
     harmonics = []
     for n in range(order + 1):
         for m in range(-n, n + 1):
-            harmonics.append(sph_harm(m, n, phi, theta))
+            Y_nm = sph_harm(m, n, phi, theta)
+            harmonics.append(Y_nm)
     return np.array(harmonics)
 
-def generate_hoa_array(num_microphones=25, radius=1.0, ambisonic_order=4):
-    """Generates microphone positions and orientations for an HOA array.
-
-    Uses a Fibonacci sphere algorithm for uniform distribution of microphones.
-
-    Args:
-        num_microphones (int): The number of microphones in the array.
-        radius (float): The radius of the sphere on which microphones are placed.
-        ambisonic_order (int): The order of Ambisonics.
-
-    Returns:
-        tuple: A tuple containing:
-            - positions (numpy.ndarray): Array of 3D microphone positions (shape: (num_microphones, 3)).
-            - orientations (list): List of DirectionVector objects for each microphone.
-            - degrees (list): List of (n, m) degree tuples for each microphone.
-
-    Raises:
-        ValueError: If num_microphones is less than (ambisonic_order+1)^2
+def HOA_array(samples=25, radius=1.0, n_order=4):
     """
-    if num_microphones < (ambisonic_order + 1)**2:
-        raise ValueError(f"Number of microphones ({num_microphones}) is insufficient for Ambisonic order {ambisonic_order}. Needs at least {(ambisonic_order + 1)**2}")
+    Generate microphone positions and orientations very close to each other
+    for an n-order Ambisonics array. Each microphone position is also assigned
+    a spherical harmonic degree (n, m).
 
-    positions = np.zeros((num_microphones, 3))
+    Parameters
+    ----------
+    samples : int
+        The number of samples (microphone positions).
+    radius : float
+        The radius of the sphere.
+    n_order : int
+        The order of Ambisonics (determines the degree (n, m) assignments).
+    Returns
+    -------
+    positions : np.ndarray
+        Array of 3D positions for the microphones.
+    orientations : list of DirectionVector
+        List of DirectionVector objects corresponding to each microphone position.
+    degrees : list of tuples
+        List of (n, m) degree pairs for each microphone.
+    """
+    positions = np.zeros((samples, 3))
     orientations = []
     degrees = []
 
-    offset = 2.0 / num_microphones
-    increment = np.pi * (3.0 - np.sqrt(5.0))  # Golden angle
+    offset = 2.0 / samples
+    increment = np.pi * (3.0 - np.sqrt(5.0))  # golden angle
 
-    for i in range(num_microphones):
-        y = ((i * offset) - 1) + (offset / 2)
-        r = np.sqrt(1 - y**2)
+    # Generate Fibonacci positions on the sphere
+    for i in range(samples):
+        y = np.array(((i * offset) - 1) + (offset / 2))
+        r = np.sqrt(1 - y ** 2)
+
         phi = i * increment
+
         x = np.cos(phi) * r
         z = np.sin(phi) * r
+
+        # 3D position on the sphere
         positions[i] = np.array([x, y, z]) * radius
 
-        azimuth = np.arctan2(y, x)
-        colatitude = np.arccos(z)
+        # Convert (x, y, z) to azimuth and colatitude
+        azimuth = np.arctan2(y, x)  # Azimuth (angle in the XY plane)
+        colatitude = np.arccos(z / radius)  # Colatitude (angle from zenith)
+
+        # Store as DirectionVector
         orientation = pra.directivities.DirectionVector(azimuth, colatitude, degrees=False)
         orientations.append(orientation)
-    
+
     # Assign spherical harmonic degrees (n, m) to each microphone
     degree_index = 0
-    for n in range(ambisonic_order + 1):  # n goes from 0 to n_order
+    for n in range(n_order + 1):  # n goes from 0 to n_order
         for m in range(-n, n + 1):  # m goes from -n to +n
-            if degree_index < num_microphones:
+            if degree_index < samples:
                 degrees.append((n, m))
                 degree_index += 1
             else:
                 break
+
     return positions, orientations, degrees
 
 from pyroomacoustics import Directivity, all_combinations
