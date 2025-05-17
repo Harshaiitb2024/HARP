@@ -13,6 +13,8 @@ If requirements are met, just run Generate.py to generate RIRs as follow:
 
 Since the data generated for 100,000 RIRs is more than 1TB, it might take some time to be uploaded.
 
+In Addition, V2 is provided that uses Ray Tracing in Complex Geometries using a spherical array, raw RIRs can be saved for now, the same command can be used inside v2 directory to generate RIRs.
+
 Cite this work: 
 
 @misc{saini2025harp,
