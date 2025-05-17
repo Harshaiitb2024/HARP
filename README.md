@@ -7,15 +7,11 @@ Provided code for generating HOA RIRs using ISM.
 This is first version of HARP that uses SphericalHarmonicDirectivity class added to Pyroomacoustics library to generate 7th order HOA.
 The details can be found in the paper.
 
-If requirements are met, just run Generate.py to generate RIRs. Setting parameters num_rooms and num_positions allows you to change the number of rooms and positions in each room to be generated.
+If requirements are met, just run Generate.py to generate RIRs as follow:
+
+      python Generate.py --output_path "./Generated_HOA_IRs/" --num_rooms 10000 --num_positions 10 --ambi_order 7 --sample_rate 48000
 
 Since the data generated for 100,000 RIRs is more than 1TB, it might take some time to be uploaded.
-
-Version 2 is uploaded that does not require SphericalHarmonicDirectivity and has following pros and cons:
-+ Ray Tracing
-+ Complex Geometries
-+ Eigenmike style microphone configuration
-- No higher bound for Reverberation time (can be added).
 
 Cite this work: 
 
