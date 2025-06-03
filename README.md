@@ -13,16 +13,15 @@ If requirements are met, just run Generate.py to generate RIRs as follow:
 
 Since the data generated for 100,000 RIRs is more than 1TB, it might take some time to be uploaded.
 
-In Addition, V2 is provided that uses Ray Tracing in Complex Geometries using a spherical array, raw RIRs can be saved for now, the same command can be used inside v2 directory to generate RIRs.
+In Addition, V2 is provided that uses Ray Tracing in Complex Geometries using a spherical microphone array, raw RIRs can be saved for now, the same command can be used inside V2 directory to generate RIRs.
 
 Cite this work: 
 
-@misc{saini2025harp,
-      title={HARP: A Large-Scale Higher-Order Ambisonic Room Impulse Response Dataset}, 
-      author={Shivam Saini and Jürgen Peissig},
-      year={2025},
-      eprint={2411.14207},
-      archivePrefix={arXiv},
-      primaryClass={cs.SD},
-      url={https://arxiv.org/abs/2411.14207}, 
+@inproceedings{saini2025harp,
+  title={HARP: A Large-Scale Higher-Order Ambisonic Room Impulse Response Dataset},
+  author={Saini, Shivam and Peissig, Juergen},
+  booktitle={2025 IEEE International Conference on Acoustics, Speech, and Signal Processing Workshops (ICASSPW)},
+  pages={1--5},
+  year={2025},
+  organization={IEEE}
 }
