@@ -95,6 +95,7 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
         source2_pos = [S2x[0], S2y[0], S2z[0]]
         mic_center_pos = [Rx[0], Ry[0], Rz[0]]
 
+        # Build room
         room = pra.ShoeBox(
             p=room_dims,
             materials=pra.make_materials(**materials),
@@ -115,14 +116,18 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
         room.image_source_model()
         room.compute_rir()
 
-        max_len = max(len(r[0]) for r in room.rir)
-        target_len = int(np.ceil(max_len / room.fs) * room.fs)
+        # --- RT60-based trimming ---
+        rt60 = pra.experimental.measure_rt60(room.rir, room.fs)  # shape [mics, sources]
+        rt60_max = np.nanmax(rt60)  # longest RT60 among all mic-source pairs
 
-        # For each source, collect mic responses
+        # Convert RT60 (seconds) -> samples (+10% safety margin)
+        target_len = int(np.ceil(rt60_max * room.fs * 1.1))
+
         num_mics = len(room.mic_array.R[0])
         num_sources = len(room.sources)
         RIRs = np.zeros((num_sources, num_mics, target_len), dtype=np.float32)
 
+        # Pad/trim each rir to target_len
         for src_idx in range(num_sources):
             for mic_idx in range(num_mics):
                 rir = np.asarray(room.rir[mic_idx][src_idx], dtype=np.float32)
@@ -132,10 +137,12 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
                     rir = rir[:target_len]
                 RIRs[src_idx, mic_idx, :] = rir
 
+        # Normalize to [-1, 1]
         max_rir_val = np.max(np.abs(RIRs))
         if max_rir_val > 0:
             RIRs = RIRs / max_rir_val
 
+        # Save compressed
         np.savez_compressed(output_filepath, rirs=RIRs, fs=room.fs)
 
         return {
@@ -153,6 +160,7 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
             "status": f"Error: {str(e)}",
             "x_room": Lx[0], "y_room": Ly[0], "z_room": Lz[0]
         }
+
 
 def main(output_path: str, num_rooms: int, num_positions: int, ambi_order: int = 3, sample_rate: int = 16000):
     os.makedirs(output_path, exist_ok=True)
