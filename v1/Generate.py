@@ -7,6 +7,7 @@ from SphericalHarmonic import HOA_array, SphericalHarmonicDirectivity
 import os
 import logging
 import argparse
+from typing import Union
 
 # Configure logging
 logs_dir = "logs"
