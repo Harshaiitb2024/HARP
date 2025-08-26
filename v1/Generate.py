@@ -107,4 +107,99 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
             )
         )
 
-        room.image_s
+        room.image_source_model()
+        room.compute_rir()
+
+        # --- RT60-based trimming ---
+        try:
+            rt60 = pra.experimental.measure_rt60(room.rir, room.fs)
+            rt60_max = np.nanmax(rt60)
+            if np.isnan(rt60_max) or rt60_max <= 0:
+                raise ValueError("Invalid RT60")
+        except Exception:
+            logging.warning(f"RT60 estimation failed for {room_name}, using fallback=3s")
+            rt60_max = 3.0
+
+        target_len = int(np.ceil(rt60_max * room.fs * 1.1))
+
+        num_mics = len(room.mic_array.R[0])
+        num_sources = len(room.sources)
+        RIRs = np.zeros((num_sources, num_mics, target_len), dtype=np.float32)
+
+        # Pad/trim each rir to target_len
+        for src_idx in range(num_sources):
+            for mic_idx in range(num_mics):
+                rir = np.asarray(room.rir[mic_idx][src_idx], dtype=np.float32)
+                if rir.size == 0:
+                    rir = np.zeros(target_len, dtype=np.float32)
+                elif len(rir) < target_len:
+                    rir = np.pad(rir, (0, target_len - len(rir)))
+                else:
+                    rir = rir[:target_len]
+                RIRs[src_idx, mic_idx, :] = rir
+
+        # Normalize to [-1, 1]
+        max_rir_val = np.max(np.abs(RIRs))
+        if max_rir_val > 0:
+            RIRs = RIRs / max_rir_val
+
+        # Save compressed
+        np.savez_compressed(output_filepath, rirs=RIRs, fs=room.fs)
+
+        return {
+            "Name": npz_filename,
+            "x_room": Lx[0], "y_room": Ly[0], "z_room": Lz[0],
+            "x_source1": S1x[0], "y_source1": S1y[0], "z_source1": S1z[0],
+            "x_source2": S2x[0], "y_source2": S2y[0], "z_source2": S2z[0],
+            "x_mic": Rx[0], "y_mic": Ry[0], "z_mic": Rz[0],
+            "rt60": rt60_max,
+            "status": "Success"
+        }
+
+    except Exception as e:
+        return {
+            "Name": npz_filename,
+            "status": f"Error: {str(e)}",
+            "x_room": Lx[0], "y_room": Ly[0], "z_room": Lz[0]
+        }
+
+def main(output_path: str, num_rooms: int, num_positions: int, ambi_order: int = 3, sample_rate: int = 16000):
+    os.makedirs(output_path, exist_ok=True)
+    ambisonic_microphone = create_ambisonic_array(order_of_ambisonics=ambi_order, sample_rate=sample_rate)
+
+    all_results = []
+    with ProcessPoolExecutor() as executor:
+        futures = []
+        for i in tqdm(range(num_rooms), desc="Generating Rooms"):
+            Lx, Ly, Lz = get_random_dimensions()
+            mat = get_random_materials()
+            for j in range(num_positions):
+                S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz = get_random_positions(Lx[0], Ly[0], Lz[0])
+                physical_params = [Lx, Ly, Lz, mat, S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz]
+                futures.append(executor.submit(simulate_room, i, j, output_path, ambisonic_microphone, physical_params))
+
+        for future in tqdm(futures, desc="Processing Results"):
+            result = future.result()
+            all_results.append(result)
+
+    data_df = pd.DataFrame([r for r in all_results if r])
+    data_output_path = os.path.join(output_path, "Generated_HOA_SRIR_data.csv")
+    data_df.to_csv(data_output_path, index=False)
+    logging.info(f"Saved metadata for {len(data_df)} RIRs")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate 2-source RIRs and save as NPZ.")
+    parser.add_argument("--output_path", type=str, default="./Generated_HOA_IRs/")
+    parser.add_argument("--num_rooms", type=int, default=2)
+    parser.add_argument("--num_positions", type=int, default=10)
+    parser.add_argument("--ambi_order", type=int, default=3)
+    parser.add_argument("--sample_rate", type=int, default=16000)
+    args = parser.parse_args()
+
+    main(
+        output_path=args.output_path,
+        num_rooms=args.num_rooms,
+        num_positions=args.num_positions,
+        ambi_order=args.ambi_order,
+        sample_rate=args.sample_rate
+    )
