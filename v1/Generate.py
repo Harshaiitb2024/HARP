@@ -122,6 +122,7 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
         room.image_source_model()
         room.compute_rir()
 
+        # --- RT60-based cutoff only ---
         rt60_max = safe_measure_rt60(room.rir, room.fs)
         target_len = int(np.ceil(rt60_max * room.fs * 1.1))
 
