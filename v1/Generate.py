@@ -37,22 +37,27 @@ CEIL = np.concatenate((LOOKUP_TABLE[3:5], LOOKUP_TABLE[30:]))
 
 # --- Utility Functions ---
 def get_random_dimensions(min_dim: int = 4, max_dim: int = 15, step: int = 1) -> tuple:
+    """Return random room dimensions as floats (not arrays)."""
     dimensions_range = np.arange(min_dim, max_dim, step)
-    return tuple(np.random.choice(dimensions_range, size=1) for _ in range(3))
+    return tuple(float(np.random.choice(dimensions_range)) for _ in range(3))
 
-def get_random_positions(Lx: float, Ly: float, Lz: float, min_dist_from_wall: float = 0.5, step: float = 0.5) -> tuple:
+def get_random_positions(Lx: float, Ly: float, Lz: float,
+                         min_dist_from_wall: float = 0.5, step: float = 0.5) -> tuple:
+    """Return random source and mic positions as floats (not arrays)."""
     x_pos_range = np.arange(min_dist_from_wall, Lx - min_dist_from_wall, step)
     y_pos_range = np.arange(min_dist_from_wall, Ly - min_dist_from_wall, step)
     z_pos_range = np.arange(min_dist_from_wall, Lz - min_dist_from_wall, step)
+
     if len(x_pos_range) == 0 or len(y_pos_range) == 0 or len(z_pos_range) == 0:
         raise ValueError(f"Room dimensions ({Lx}, {Ly}, {Lz}) too small.")
 
-    S1x, S1y, S1z = [np.random.choice(r, size=1) for r in [x_pos_range, y_pos_range, z_pos_range]]
+    S1x, S1y, S1z = [float(np.random.choice(r)) for r in [x_pos_range, y_pos_range, z_pos_range]]
     while True:
-        S2x, S2y, S2z = [np.random.choice(r, size=1) for r in [x_pos_range, y_pos_range, z_pos_range]]
+        S2x, S2y, S2z = [float(np.random.choice(r)) for r in [x_pos_range, y_pos_range, z_pos_range]]
         if np.linalg.norm([S1x - S2x, S1y - S2y, S1z - S2z]) > 0.5:
             break
-    Rx, Ry, Rz = [np.random.choice(r, size=1) for r in [x_pos_range, y_pos_range, z_pos_range]]
+    Rx, Ry, Rz = [float(np.random.choice(r)) for r in [x_pos_range, y_pos_range, z_pos_range]]
+
     return S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz
 
 def get_random_materials() -> dict:
@@ -85,10 +90,10 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
     Lx, Ly, Lz, materials, S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz = physical_params
 
     try:
-        room_dims = [Lx[0], Ly[0], Lz[0]]
-        source1_pos = [S1x[0], S1y[0], S1z[0]]
-        source2_pos = [S2x[0], S2y[0], S2z[0]]
-        mic_center_pos = [Rx[0], Ry[0], Rz[0]]
+        room_dims = [Lx, Ly, Lz]
+        source1_pos = [S1x, S1y, S1z]
+        source2_pos = [S2x, S2y, S2z]
+        mic_center_pos = [Rx, Ry, Rz]
 
         # Build room
         room = pra.ShoeBox(
@@ -148,10 +153,10 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
 
         return {
             "Name": npz_filename,
-            "x_room": Lx[0], "y_room": Ly[0], "z_room": Lz[0],
-            "x_source1": S1x[0], "y_source1": S1y[0], "z_source1": S1z[0],
-            "x_source2": S2x[0], "y_source2": S2y[0], "z_source2": S2z[0],
-            "x_mic": Rx[0], "y_mic": Ry[0], "z_mic": Rz[0],
+            "x_room": Lx, "y_room": Ly, "z_room": Lz,
+            "x_source1": S1x, "y_source1": S1y, "z_source1": S1z,
+            "x_source2": S2x, "y_source2": S2y, "z_source2": S2z,
+            "x_mic": Rx, "y_mic": Ry, "z_mic": Rz,
             "rt60": rt60_max,
             "status": "Success"
         }
@@ -160,7 +165,7 @@ def simulate_room(room_idx: int, pos_idx: int, output_path: str, ambisonic_micro
         return {
             "Name": npz_filename,
             "status": f"Error: {str(e)}",
-            "x_room": Lx[0], "y_room": Ly[0], "z_room": Lz[0]
+            "x_room": Lx, "y_room": Ly, "z_room": Lz
         }
 
 def main(output_path: str, num_rooms: int, num_positions: int, ambi_order: int = 3, sample_rate: int = 16000):
@@ -174,7 +179,7 @@ def main(output_path: str, num_rooms: int, num_positions: int, ambi_order: int =
             Lx, Ly, Lz = get_random_dimensions()
             mat = get_random_materials()
             for j in range(num_positions):
-                S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz = get_random_positions(Lx[0], Ly[0], Lz[0])
+                S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz = get_random_positions(Lx, Ly, Lz)
                 physical_params = [Lx, Ly, Lz, mat, S1x, S1y, S1z, S2x, S2y, S2z, Rx, Ry, Rz]
                 futures.append(executor.submit(simulate_room, i, j, output_path, ambisonic_microphone, physical_params))
 
